@@ -54,3 +54,7 @@ pids
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+
+// Firebase JSON Config 
+saydaliati-9208e-firebase-adminsdk-p7y8l-5477414ea3.json
