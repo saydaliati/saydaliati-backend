@@ -1,9 +1,10 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import * as admin from 'firebase-admin';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class FirebaseService implements OnModuleInit {
+  private readonly logger = new Logger(FirebaseService.name);
   public firestore: admin.firestore.Firestore;
   public auth: admin.auth.Auth;
 
@@ -19,7 +20,7 @@ export class FirebaseService implements OnModuleInit {
           ?.replace(/\\n/g, '\n'),
       };
 
-      console.log('Initializing Firebase with project ID:', serviceAccount.projectId);
+      this.logger.log(`Initializing Firebase with project ID: ${serviceAccount.projectId}`);
 
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
@@ -28,24 +29,22 @@ export class FirebaseService implements OnModuleInit {
       this.firestore = admin.firestore();
       this.auth = admin.auth();
 
-      console.log('Firebase initialized successfully');
+      this.logger.log('Firebase initialized successfully');
     } catch (error) {
-      console.error('Firebase initialization error:', error);
+      this.logger.error('Firebase initialization error:', error);
       throw error;
     }
   }
 
-
-
-  // Helper to get a collection reference
   collection(collectionName: string) {
-    return admin.firestore().collection(collectionName);
+    return this.firestore.collection(collectionName);
   }
 
-  // Helper to get a document reference
   doc(collectionName: string, documentId: string) {
-    return admin.firestore().collection(collectionName).doc(documentId);
+    return this.collection(collectionName).doc(documentId);
   }
 
-
+  async verifyToken(token: string): Promise<admin.auth.DecodedIdToken> {
+    return this.auth.verifyIdToken(token);
+  }
 }
