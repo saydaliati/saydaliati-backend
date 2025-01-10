@@ -4,6 +4,9 @@ export interface UserCredentials {
   name?: string;
 }
 
+export interface RegisterResponse {
+  message: string;
+}
 export interface AuthResponse {
   User: UserData;
   tokens: TokenData;
@@ -14,11 +17,13 @@ export interface UserData {
   email: string;
   role: UserRole;
   name: string;
+  isVerified: boolean;
 }
 
 export interface TokenData {
-  accessToken: string;
-  refreshToken: string;
+  idToken?: string
+  accessToken?: string;
+  refreshToken?: string;
 }
 
 export enum UserRole {

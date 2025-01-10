@@ -6,6 +6,7 @@ import {
   AuthResponse,
   UserRole,
   TokenData,
+  RegisterResponse,
 } from './interfaces/auth.interfaces';
 import * as admin from 'firebase-admin';
 
@@ -18,7 +19,7 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async register(credentials: UserCredentials): Promise<AuthResponse> {
+  async register(credentials: UserCredentials): Promise<RegisterResponse> {
     try {
       // Create user in Firebase Auth
       const userRecord = await this.firebaseService.auth.createUser({
@@ -31,48 +32,57 @@ export class AuthService {
       await this.firebaseService.collection('users').doc(userRecord.uid).set({
         email: userRecord.email,
         role: UserRole.USER,
+        isVerified: false,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 
-      // Generate tokens
-      const tokens = await this.generateTokens(userRecord.uid);
+      // Generate verification link
+      const emailVerificationLink =
+        await this.firebaseService.auth.generateEmailVerificationLink(
+          userRecord.email!,
+          {
+            url: `${process.env.CIENT_URL}/verify-email?token=${userRecord.uid}`,
+            handleCodeInApp: true,
+          },
+        );
 
-      return {
-        User: {
-          uid: userRecord.uid,
-          email: userRecord.email!,
-          role: UserRole.USER,
-          name: userRecord.displayName!,
-        },
-        tokens,
-      };
+        return { message: 'Registration successful! A verification email has been sent.' };
     } catch (error) {
       this.logger.error('Registration failed:', error);
       throw new UnauthorizedException('Registration failed');
     }
   }
-  private async generateTokens(uid: string): Promise<TokenData> {
-    const [accessToken, refreshToken] = await Promise.all([
-      this.jwtService.signAsync(
-        { uid },
-        { expiresIn: '15m' }
-      ),
-      this.jwtService.signAsync(
-        { uid },
-        { expiresIn: '7d' }
-      ),
-    ]);
 
-    return { accessToken, refreshToken };
-  }
-
-  async refreshToken(refreshToken: string): Promise<TokenData> {
+  //Verify User's Account 
+  async verifyEmail(token:string): Promise<{ message: string }> {
     try {
-      const decoded = await this.jwtService.verifyAsync(refreshToken);
-      return this.generateTokens(decoded.uid);
+      // Decode the token to extract the userID 
+      const decodedToken = await this.firebaseService.auth.verifyIdToken(token);
+
+      const userId = decodedToken.uid;
+      
+      // Retrieve user document and check the current status
+      const userDocRef = this.firebaseService.collection('users').doc(userId);
+      const userDoc = await userDocRef.get();
+
+      if (!userDoc.exists) {
+        throw new UnauthorizedException('User not found');
+      }
+
+      const userData = userDoc.data();
+      if (userData.isVerified) {
+        throw new UnauthorizedException('Email is already verified');
+      }
+
+      // Update user document to set isVerified to true
+
+      await userDocRef.update({ isVerified: true });
+      return { message: 'Email verification successful' };
+      
     } catch (error) {
-      throw new UnauthorizedException('Invalid refresh token');
+      this.logger.error('Email verification failed:', error);
+      throw new UnauthorizedException('Email verification failed');
     }
   }
-}
 
+}
