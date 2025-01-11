@@ -39,13 +39,12 @@ export class AuthService {
       await this.firebaseService.collection('users').doc(userRecord.uid).set({
         email: userRecord.email,
         role: UserRole.USER,
-        isVerified: false,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 
        // Generate verification link
        const actionCodeSettings = {
-        url: `${process.env.CLIENT_URL}/verify-email?token=${userRecord.uid}`,
+        url: `${process.env.CLIENT_URL}/verify-email`,
         handleCodeInApp: true,
       };
 
@@ -86,17 +85,60 @@ export class AuthService {
       }
 
       const userData = userDoc.data();
-      if (userData.isVerified) {
+      if (userData.emailVerified) {
         throw new UnauthorizedException('Email is already verified');
       }
 
       // Update user document to set isVerified to true
 
-      await userDocRef.update({ isVerified: true });
+      await userDocRef.update({ emailVerified: true });
       return { message: 'Email verification successful' };
     } catch (error) {
       this.logger.error('Email verification failed:', error);
       throw new UnauthorizedException('Email verification failed');
+    }
+  }
+
+  // Login an existing user 
+  async login(credentials: UserCredentials): Promise<AuthResponse> {
+    try {
+      // Verify if the user exists in the Firebase Auth
+      const userRecord = await this.firebaseService.auth.getUserByEmail(
+        credentials.email,
+      );
+  
+      // Check if email is verified in Firebase Auth
+      if (!userRecord.emailVerified) {
+        throw new UnauthorizedException('Email is not verified');
+      }
+  
+      // Get user data from Firestore
+      const userDocRef = this.firebaseService.collection('users').doc(userRecord.uid);
+      const userDoc = await userDocRef.get();
+      if (!userDoc.exists) {
+        throw new UnauthorizedException('User not found');
+      }
+      const userData = userDoc.data();
+  
+      // Generate JWT token
+      const token = this.jwtService.sign({
+        sub: userRecord.uid,
+        email: userRecord.email,
+        role: userData.role,
+      } as TokenData);
+  
+      return {
+        tokens: { accessToken: token },
+        User: {
+          name: userRecord.displayName,
+          email: userRecord.email,
+          role: userData.role,
+        },
+      }
+  
+    } catch (error) {
+      this.logger.error('Login failed:', error);
+      throw new UnauthorizedException('Invalid credentials');
     }
   }
 }

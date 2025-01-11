@@ -8,7 +8,7 @@ export interface RegisterResponse {
   message: string;
 }
 export interface AuthResponse {
-  User: UserData;
+  User: Omit<UserData, 'isVerified' | 'uid'>;
   tokens: TokenData;
 }
 
@@ -21,9 +21,7 @@ export interface UserData {
 }
 
 export interface TokenData {
-  idToken?: string
   accessToken?: string;
-  refreshToken?: string;
 }
 
 export enum UserRole {
