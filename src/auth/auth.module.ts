@@ -4,12 +4,14 @@ import { AuthController } from './auth.controller';
 import { FirebaseModule } from '@/firebase/firebase.module';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { MailModule } from '@/mail/mail.module';
+import { MailService } from '@/mail/mail.service';
 
 @Module({
   imports: [
     FirebaseModule,
     JwtModule.registerAsync({
-      imports: [ConfigModule],
+      imports: [ConfigModule, MailModule],
       useFactory: async (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET'),
       }),
@@ -17,7 +19,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService],
-  exports: [AuthService]
+  providers: [AuthService, MailService],
+  exports: [AuthService],
 })
 export class AuthModule {}

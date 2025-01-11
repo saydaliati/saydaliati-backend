@@ -1,4 +1,9 @@
-import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  Logger,
+  BadRequestException,
+} from '@nestjs/common';
 import { FirebaseService } from '../firebase/firebase.service';
 import { JwtService } from '@nestjs/jwt';
 import {
@@ -9,6 +14,7 @@ import {
   RegisterResponse,
 } from './interfaces/auth.interfaces';
 import * as admin from 'firebase-admin';
+import { MailService } from '@/mail/mail.service';
 
 @Injectable()
 export class AuthService {
@@ -17,6 +23,7 @@ export class AuthService {
   constructor(
     private firebaseService: FirebaseService,
     private jwtService: JwtService,
+    private mailService: MailService
   ) {}
 
   async register(credentials: UserCredentials): Promise<RegisterResponse> {
@@ -36,31 +43,40 @@ export class AuthService {
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 
-      // Generate verification link
-      const emailVerificationLink =
-        await this.firebaseService.auth.generateEmailVerificationLink(
-          userRecord.email!,
-          {
-            url: `${process.env.CIENT_URL}/verify-email?token=${userRecord.uid}`,
-            handleCodeInApp: true,
-          },
-        );
+       // Generate verification link
+       const actionCodeSettings = {
+        url: `${process.env.CLIENT_URL}/verify-email?token=${userRecord.uid}`,
+        handleCodeInApp: true,
+      };
 
-        return { message: 'Registration successful! A verification email has been sent.' };
+      const emailVerificationLink = await admin
+        .auth()
+        .generateEmailVerificationLink(userRecord.email!, actionCodeSettings);
+
+      // Send verification email
+      await this.mailService.sendVerificationEmail(
+        userRecord.email!,
+        emailVerificationLink,
+        credentials.name
+      );
+
+      return {
+        message: 'Registration successful! Please check your email for verification.',
+      };
     } catch (error) {
       this.logger.error('Registration failed:', error);
-      throw new UnauthorizedException('Registration failed');
+      throw new BadRequestException(error.message);
     }
   }
 
-  //Verify User's Account 
-  async verifyEmail(token:string): Promise<{ message: string }> {
+  //Verify User's Account
+  async verifyEmail(token: string): Promise<{ message: string }> {
     try {
-      // Decode the token to extract the userID 
+      // Decode the token to extract the userID
       const decodedToken = await this.firebaseService.auth.verifyIdToken(token);
 
       const userId = decodedToken.uid;
-      
+
       // Retrieve user document and check the current status
       const userDocRef = this.firebaseService.collection('users').doc(userId);
       const userDoc = await userDocRef.get();
@@ -78,11 +94,9 @@ export class AuthService {
 
       await userDocRef.update({ isVerified: true });
       return { message: 'Email verification successful' };
-      
     } catch (error) {
       this.logger.error('Email verification failed:', error);
       throw new UnauthorizedException('Email verification failed');
     }
   }
-
 }
