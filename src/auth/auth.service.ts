@@ -12,6 +12,8 @@ import {
   UserRole,
   TokenData,
   RegisterResponse,
+  ForgotPasswordDto,
+  ResetPasswordDto,
 } from './interfaces/auth.interfaces';
 import * as admin from 'firebase-admin';
 import { MailService } from '@/mail/mail.service';
@@ -110,6 +112,86 @@ export class AuthService {
     } catch (error) {
       this.logger.error('Login failed:', error);
       throw new UnauthorizedException('Invalid credentials');
+    }
+  }
+
+  async forgotPassword(data: ForgotPasswordDto): Promise<{ message: string }> {
+    try {
+      // Verify if user exists
+      const userRecord = await this.firebaseService.auth.getUserByEmail(
+        data.email,
+      );
+
+      // Generate password reset link
+      const actionCodeSettings = {
+        url: `${process.env.CLIENT_URL}/reset-password`,
+        handleCodeInApp: true,
+      };
+
+      const resetLink = await admin
+        .auth()
+        .generatePasswordResetLink(data.email, actionCodeSettings);
+
+      // Send password reset email
+      await this.mailService.sendPasswordResetEmail(
+        data.email,
+        resetLink,
+        userRecord.displayName || '',
+      );
+
+      return {
+        message: 'Password reset instructions have been sent to your email.',
+      };
+    } catch (error) {
+      this.logger.error('Forgot password failed:', error);
+      // Don't expose whether the email exists or not for security
+      return {
+        message:
+          'If an account exists, password reset instructions will be sent.',
+      };
+    }
+  }
+  async resetPassword(data: ResetPasswordDto): Promise<{ message: string }> {
+    try {
+      // The token will be a JWT containing the user's email
+      const email = await this.extractEmailFromToken(data.token);
+      
+      // Get user record
+      const userRecord = await this.firebaseService.auth.getUserByEmail(email);
+
+      // Update the password
+      await this.firebaseService.auth.updateUser(userRecord.uid, {
+        password: data.newPassword,
+      });
+
+      // Log the password change in Firestore
+      await this.firebaseService.collection('users').doc(userRecord.uid).update({
+        lastPasswordReset: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      return {
+        message: 'Password has been successfully reset. You can now login.',
+      };
+    } catch (error) {
+      this.logger.error('Reset password failed:', error);
+      throw new BadRequestException(
+        'Failed to reset password. Please try again.',
+      );
+    }
+  }
+
+  private async extractEmailFromToken(token: string): Promise<string> {
+    try {
+      const decoded = this.jwtService.verify(token);
+      
+      if (!decoded.email) {
+        throw new Error('Invalid token format');
+      }
+      
+      return decoded.email;
+    } catch (error) {
+      this.logger.error('Token verification failed:', error);
+      throw new BadRequestException('Invalid or expired reset token');
     }
   }
 }

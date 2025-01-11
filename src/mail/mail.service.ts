@@ -1,35 +1,59 @@
-import { Injectable } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
+import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
-
 
 @Injectable()
 export class MailService {
-    private transporter: nodemailer.Transporter;
+  private transporter: nodemailer.Transporter;
 
-    constructor(private configService:ConfigService){
-        this.transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: {
-                user: this.configService.get<string>('EMAIL_USER'),
-                pass: this.configService.get<string>('EMAIL_PASS'),
-            },
-        })
+  constructor(private configService: ConfigService) {
+    this.transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: this.configService.get<string>('EMAIL_USER'),
+        pass: this.configService.get<string>('EMAIL_PASS'),
+      },
+    });
+  }
+
+  async sendVerificationEmail(
+    email: string,
+    verificationLink: string,
+    username: string,
+  ): Promise<void> {
+    const mailOptions: nodemailer.SendMailOptions = {
+      from: this.configService.get<string>('EMAIL_FROM'),
+      to: email,
+      subject: 'Email Verification',
+      html: this.getVerificationEmailTemplate(verificationLink, username),
+    };
+
+    await this.transporter.sendMail(mailOptions);
+  }
+
+  async sendPasswordResetEmail(
+    email: string,
+    resetLink: string,
+    name: string,
+  ): Promise<void> {
+    const emailData = {
+      to: email,
+      subject: 'Reset Your Password',
+      html: this.getResetPasswordLink(resetLink, name),
+    };
+
+    try {
+      await this.transporter.sendMail(emailData);
+    } catch (error) {
+      throw new Error('Failed to send password reset email');
     }
+  }
 
-    async sendVerificationEmail(email: string, verificationLink: string, username:string): Promise<void> {
-        const mailOptions: nodemailer.SendMailOptions = {
-            from: this.configService.get<string>('EMAIL_FROM'),
-            to: email,
-            subject: 'Email Verification',
-            html: this.getVerificationEmailTemplate(verificationLink, username)
-        };
-
-        await this.transporter.sendMail(mailOptions);
-    }
-
-    private getVerificationEmailTemplate(verificationLink: string, username: string): string {
-        return `
+  private getVerificationEmailTemplate(
+    verificationLink: string,
+    username: string,
+  ): string {
+    return `
         <!DOCTYPE html>
         <html>
         <head>
@@ -74,5 +98,53 @@ export class MailService {
         </body>
         </html>
       `;
-    }
   }
+
+  private getResetPasswordLink(resetLink: string, name: string): string {
+    return `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            .email-container {
+              font-family: Arial, sans-serif;
+              max-width: 600px;
+              margin: 0 auto;
+              padding: 20px;
+            }
+            .button {
+              background-color: #181818;
+              border: red 2px solid;
+              color: white;
+              padding: 15px 32px;
+              text-align: center;
+              text-decoration: none;
+              display: inline-block;
+              font-size: 16px;
+              margin: 4px 2px;
+              cursor: pointer;
+              border-radius: 4px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="email-container">
+            <h2>Welcome to Our Platform!</h2>
+            <p>Hello ${name},</p>
+<p>We received a request to reset your password. Click the link below to set a new password:</p>
+            <p>
+              <a href="${resetLink}" class="button">Reset Password</a>
+            </p>
+            <p>Or copy and paste this link in your browser:</p>
+            <p>${resetLink}</p>
+            <p>This link expires immeadiatly.</p>
+<p>If you didn't request this, you can safely ignore this email.</p>
+            <br>
+            <p>Best regards,</p>
+            <p>Saydaliyati Support Team</p>
+          </div>
+        </body>
+        </html>
+      `;
+  }
+}

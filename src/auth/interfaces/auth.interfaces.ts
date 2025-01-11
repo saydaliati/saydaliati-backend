@@ -28,3 +28,12 @@ export enum UserRole {
   ADMIN = 'admin',
   USER = 'user',
 }
+
+export interface ForgotPasswordDto {
+  email: string;
+}
+
+export interface ResetPasswordDto {
+  token: string;
+  newPassword: string;
+}
