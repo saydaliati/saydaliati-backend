@@ -1,3 +1,4 @@
+import { MakeResetEmail } from '@/shared/helpers/MakeResetEmail.helper';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
@@ -39,7 +40,7 @@ export class MailService {
     const emailData = {
       to: email,
       subject: 'Reset Your Password',
-      html: this.getResetPasswordLink(resetLink, name),
+      html: MakeResetEmail(resetLink, name),
     };
 
     try {
@@ -99,52 +100,7 @@ export class MailService {
         </html>
       `;
   }
+  
 
-  private getResetPasswordLink(resetLink: string, name: string): string {
-    return `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <style>
-            .email-container {
-              font-family: Arial, sans-serif;
-              max-width: 600px;
-              margin: 0 auto;
-              padding: 20px;
-            }
-            .button {
-              background-color: #181818;
-              border: red 2px solid;
-              color: white;
-              padding: 15px 32px;
-              text-align: center;
-              text-decoration: none;
-              display: inline-block;
-              font-size: 16px;
-              margin: 4px 2px;
-              cursor: pointer;
-              border-radius: 4px;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="email-container">
-            <h2>Welcome to Our Platform!</h2>
-            <p>Hello ${name},</p>
-<p>We received a request to reset your password. Click the link below to set a new password:</p>
-            <p>
-              <a href="${resetLink}" class="button">Reset Password</a>
-            </p>
-            <p>Or copy and paste this link in your browser:</p>
-            <p>${resetLink}</p>
-            <p>This link expires immeadiatly.</p>
-<p>If you didn't request this, you can safely ignore this email.</p>
-            <br>
-            <p>Best regards,</p>
-            <p>Saydaliyati Support Team</p>
-          </div>
-        </body>
-        </html>
-      `;
-  }
+
 }
