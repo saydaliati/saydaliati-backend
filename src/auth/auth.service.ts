@@ -74,35 +74,34 @@ export class AuthService {
   // Login an existing user
   async login(credentials: UserCredentials): Promise<AuthResponse> {
     try {
-      // Verify if the user exists in the Firebase Auth
-      const userRecord = await this.firebaseService.auth.getUserByEmail(
-        credentials.email,
-      );
-
-      // Check if email is verified in Firebase Auth
+      // Get user record to check if user exists
+      const userRecord = await this.firebaseService.auth.getUserByEmail(credentials.email)
+        .catch(() => {
+          throw new UnauthorizedException('Invalid credentials');
+        });
+  
+      // Check if email is verified
       if (!userRecord.emailVerified) {
         throw new UnauthorizedException('Email is not verified');
       }
-
+  
       // Get user data from Firestore
-      const userDocRef = this.firebaseService
-        .collection('users')
-        .doc(userRecord.uid);
+      const userDocRef = this.firebaseService.collection('users').doc(userRecord.uid);
       const userDoc = await userDocRef.get();
       if (!userDoc.exists) {
         throw new UnauthorizedException('User not found');
       }
       const userData = userDoc.data();
-
+  
       // Generate JWT token
       const token = this.jwtService.sign({
         sub: userRecord.uid,
         email: userRecord.email,
         role: userData.role,
       } as TokenData);
-
+  
       return {
-        tokens: { accessToken: token },
+        token: token ,
         User: {
           name: userRecord.displayName,
           email: userRecord.email,
@@ -194,4 +193,5 @@ export class AuthService {
       throw new BadRequestException('Invalid or expired reset token');
     }
   }
+
 }

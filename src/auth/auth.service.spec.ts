@@ -169,7 +169,7 @@ describe('AuthService', () => {
       });
 
       expect(result).toEqual({
-        tokens: { accessToken: 'mock-jwt-token' },
+        token: 'mock-jwt-token' ,
         User: {
           name: mockUserRecord.displayName,
           email: mockUserRecord.email,

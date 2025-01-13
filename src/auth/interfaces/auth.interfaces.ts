@@ -9,7 +9,7 @@ export interface RegisterResponse {
 }
 export interface AuthResponse {
   User: Omit<UserData, 'isVerified' | 'uid'>;
-  tokens: TokenData;
+  token: string;
 }
 
 export interface UserData {
@@ -21,7 +21,9 @@ export interface UserData {
 }
 
 export interface TokenData {
-  accessToken?: string;
+  sub: string;
+  email: string;
+  role: UserRole;
 }
 
 export enum UserRole {
