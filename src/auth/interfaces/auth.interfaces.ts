@@ -8,8 +8,8 @@ export interface RegisterResponse {
   message: string;
 }
 export interface AuthResponse {
-  User: UserData;
-  tokens: TokenData;
+  User: Omit<UserData, 'isVerified' | 'uid'>;
+  token: string;
 }
 
 export interface UserData {
@@ -21,12 +21,21 @@ export interface UserData {
 }
 
 export interface TokenData {
-  idToken?: string
-  accessToken?: string;
-  refreshToken?: string;
+  sub: string;
+  email: string;
+  role: UserRole;
 }
 
 export enum UserRole {
   ADMIN = 'admin',
   USER = 'user',
+}
+
+export interface ForgotPasswordDto {
+  email: string;
+}
+
+export interface ResetPasswordDto {
+  token: string;
+  newPassword: string;
 }

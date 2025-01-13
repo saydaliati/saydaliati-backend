@@ -1,4 +1,9 @@
-import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  OnModuleInit,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import * as admin from 'firebase-admin';
 import { ConfigService } from '@nestjs/config';
 
@@ -20,10 +25,14 @@ export class FirebaseService implements OnModuleInit {
           ?.replace(/\\n/g, '\n'),
       };
 
-      this.logger.log(`Initializing Firebase with project ID: ${serviceAccount.projectId}`);
+      this.logger.log(
+        `Initializing Firebase with project ID: ${serviceAccount.projectId}`,
+      );
 
       admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
+        credential: admin.credential.cert(
+          serviceAccount as admin.ServiceAccount,
+        ),
       });
 
       this.firestore = admin.firestore();
@@ -44,7 +53,11 @@ export class FirebaseService implements OnModuleInit {
     return this.collection(collectionName).doc(documentId);
   }
 
-  async verifyToken(token: string): Promise<admin.auth.DecodedIdToken> {
-    return this.auth.verifyIdToken(token);
+  async verifyToken(token: string) {
+    try {
+      return await admin.auth().verifyIdToken(token);
+    } catch (error) {
+      throw new UnauthorizedException('Invalid token');
+    }
   }
 }

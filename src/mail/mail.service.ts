@@ -1,35 +1,60 @@
-import { Injectable } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
+import { MakeResetEmail } from '@/shared/helpers/MakeResetEmail.helper';
+import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
-
 
 @Injectable()
 export class MailService {
-    private transporter: nodemailer.Transporter;
+  private transporter: nodemailer.Transporter;
 
-    constructor(private configService:ConfigService){
-        this.transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: {
-                user: this.configService.get<string>('EMAIL_USER'),
-                pass: this.configService.get<string>('EMAIL_PASS'),
-            },
-        })
+  constructor(private configService: ConfigService) {
+    this.transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: this.configService.get<string>('EMAIL_USER'),
+        pass: this.configService.get<string>('EMAIL_PASS'),
+      },
+    });
+  }
+
+  async sendVerificationEmail(
+    email: string,
+    verificationLink: string,
+    username: string,
+  ): Promise<void> {
+    const mailOptions: nodemailer.SendMailOptions = {
+      from: this.configService.get<string>('EMAIL_FROM'),
+      to: email,
+      subject: 'Email Verification',
+      html: this.getVerificationEmailTemplate(verificationLink, username),
+    };
+
+    await this.transporter.sendMail(mailOptions);
+  }
+
+  async sendPasswordResetEmail(
+    email: string,
+    resetLink: string,
+    name: string,
+  ): Promise<void> {
+    const emailData = {
+      to: email,
+      subject: 'Reset Your Password',
+      html: MakeResetEmail(resetLink, name),
+    };
+
+    try {
+      await this.transporter.sendMail(emailData);
+    } catch (error) {
+      throw new Error('Failed to send password reset email');
     }
+  }
 
-    async sendVerificationEmail(email: string, verificationLink: string, username:string): Promise<void> {
-        const mailOptions: nodemailer.SendMailOptions = {
-            from: this.configService.get<string>('EMAIL_FROM'),
-            to: email,
-            subject: 'Email Verification',
-            html: this.getVerificationEmailTemplate(verificationLink, username)
-        };
-
-        await this.transporter.sendMail(mailOptions);
-    }
-
-    private getVerificationEmailTemplate(verificationLink: string, username: string): string {
-        return `
+  private getVerificationEmailTemplate(
+    verificationLink: string,
+    username: string,
+  ): string {
+    return `
         <!DOCTYPE html>
         <html>
         <head>
@@ -74,5 +99,8 @@ export class MailService {
         </body>
         </html>
       `;
-    }
   }
+  
+
+
+}
