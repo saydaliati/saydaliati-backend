@@ -1,9 +1,13 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseInterceptors, UploadedFile, UseGuards } from '@nestjs/common';
 import { PharmacyService } from './pharmacy.service';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CreatePharmacyDto } from './dto/create-pharmacy.dto';
 import { UpdatePharmacyDto } from './dto/update-pharmacy.dto';
 import {S3Service} from  '../s3/s3.service';
+import { JwtAuthGuard } from '@/auth/guards/auth.guard';
+import { RolesGuard } from '@/auth/guards/roles.guard';
+
+
 @Controller('pharmacy')
 export class PharmacyController {
   constructor(
@@ -12,6 +16,8 @@ export class PharmacyController {
   ) {}
 
   @Post("/createPharmacy")
+  @UseGuards(JwtAuthGuard)
+  @UseGuards(RolesGuard)
   @UseInterceptors(FileInterceptor('image'))
   async create(
     @Body() createPharmacyDto: CreatePharmacyDto,
@@ -28,7 +34,7 @@ export class PharmacyController {
     return this.pharmacyService.create(createPharmacyDto);
   }
 
-  @Get()  
+  @Get()
   findAll() {
     return this.pharmacyService.findAll();
   }
@@ -39,11 +45,15 @@ export class PharmacyController {
   }
 
   @Patch(':id')
+  @UseGuards(JwtAuthGuard)
+  @UseGuards(RolesGuard)
   update(@Param('id') id: string, @Body() updatePharmacyDto: UpdatePharmacyDto) {
     return this.pharmacyService.update(id, updatePharmacyDto);
   }
 
   @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  @UseGuards(RolesGuard)
   remove(@Param('id') id: string) {
     return this.pharmacyService.remove(id);
   }
