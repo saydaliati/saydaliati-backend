@@ -6,7 +6,7 @@ import { UpdatePharmacyDto } from './dto/update-pharmacy.dto';
 import {S3Service} from  '../s3/s3.service';
 import { JwtAuthGuard } from '@/auth/guards/auth.guard';
 import { RolesGuard } from '@/auth/guards/roles.guard';
-
+import { UpdateStatusDto } from './dto/UpdateStatusDto.dto';
 
 @Controller('pharmacy')
 export class PharmacyController {
@@ -57,4 +57,15 @@ export class PharmacyController {
   remove(@Param('id') id: string) {
     return this.pharmacyService.remove(id);
   }
+
+
+  @Patch('updateStatus/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  updateStatus(@Param() updateStatusDto: UpdateStatusDto) {
+   
+    
+  const { id } = updateStatusDto; 
+  console.log(id);
+  return this.pharmacyService.updateStatus(id); 
+}
 }

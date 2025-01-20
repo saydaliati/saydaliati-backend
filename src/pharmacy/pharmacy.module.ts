@@ -12,3 +12,4 @@ import { S3Module } from '@/s3/s3.module';
   providers: [PharmacyService],
 })
 export class PharmacyModule {}
+

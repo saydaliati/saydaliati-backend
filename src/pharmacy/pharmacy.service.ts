@@ -3,6 +3,8 @@ import { CreatePharmacyDto } from './dto/create-pharmacy.dto';
 import { UpdatePharmacyDto } from './dto/update-pharmacy.dto';
 import * as admin from 'firebase-admin';
 import { FirebaseService } from '../firebase/firebase.service';
+import { threadId } from 'worker_threads';
+import { UpdateStatusDto } from './dto/UpdateStatusDto.dto';
 
 @Injectable()
 export class PharmacyService {
@@ -97,4 +99,31 @@ export class PharmacyService {
       throw new BadRequestException('Failed to delete pharmacy');
     }
   }
+
+
+
+  async updateStatus(id: string) {
+    console.log('hello hmadi');
+    
+    if (!id) {
+      throw new BadRequestException('Pharmacy ID is required');
+    }
+  
+    console.log('Updating pharmacy with ID:', id); 
+  
+    const pharmacyRef = this.firebaseService.collection('pharmacies').doc(id);
+    const pharmacyDoc = await pharmacyRef.get();
+  
+    if (!pharmacyDoc.exists) {
+      throw new BadRequestException('Pharmacy not found');
+    }
+  
+    const pharmacyData = pharmacyDoc.data();
+    const newStatus = pharmacyData.status === 'close' ? 'open' : 'close';
+    await pharmacyRef.update({ status: newStatus });
+  
+    return { message: `Pharmacy status updated to ${newStatus}` };
+  }
+  
+  
 }
