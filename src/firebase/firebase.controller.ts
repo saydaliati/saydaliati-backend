@@ -9,7 +9,7 @@ export class FirebaseController {
     try {
       // Create a test document
       const testDoc = await this.firebaseService.collection('users').add({
-        message: 'Ntaaa zamel',
+        message: 'nice',
         timestamp: new Date(),
       });
 
