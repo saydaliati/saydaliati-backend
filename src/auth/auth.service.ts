@@ -208,7 +208,7 @@ export class AuthService {
     }
   }
 
-  private async extractEmailFromToken(token: string): Promise<string> {
+  async extractEmailFromToken(token: string): Promise<string> {
     try {
       const decoded = this.jwtService.verify(token);
 
