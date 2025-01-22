@@ -30,6 +30,7 @@ export class CommentsService {
       userId: userRecord.uid,
       comment: createCommentDto.comment,
       stars: createCommentDto.stars,
+      createdAt: new Date().toISOString(),
     });
 
     return {
