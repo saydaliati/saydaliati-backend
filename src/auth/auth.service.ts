@@ -136,7 +136,7 @@ export class AuthService {
         );
       }
 
-      throw new UnauthorizedException('Authentication failed: ' + error.message);
+      throw new UnauthorizedException('Authentication failed: ' + `${error.code == "auth/wrong-password" || "auth/user-not-found" ? "Invalid Credentials" : error.message}`);
     }
   }
 
