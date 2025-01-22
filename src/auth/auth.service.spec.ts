@@ -43,6 +43,7 @@ describe('AuthService', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
+      imports: [],
       providers: [
         AuthService,
         {
@@ -87,7 +88,9 @@ describe('AuthService', () => {
         doc: jest.fn().mockReturnValue(mockDocRef),
       });
       mockFirebaseService.auth.createUser.mockResolvedValue(mockUserRecord);
-      (admin.auth().generateEmailVerificationLink as jest.Mock).mockResolvedValue('mock-verification-link');
+      (
+        admin.auth().generateEmailVerificationLink as jest.Mock
+      ).mockResolvedValue('mock-verification-link');
     });
 
     it('should successfully register a new user', async () => {
@@ -107,11 +110,12 @@ describe('AuthService', () => {
       expect(mailService.sendVerificationEmail).toHaveBeenCalledWith(
         mockCredentials.email,
         undefined,
-        mockCredentials.name
+        mockCredentials.name,
       );
 
       expect(result).toEqual({
-        message: 'Registration successful! Please check your email for verification.',
+        message:
+          'Registration successful! Please check your email for verification.',
       });
     });
 
@@ -125,93 +129,165 @@ describe('AuthService', () => {
     });
   });
 
-  describe('login', () => {
-    const mockCredentials = {
-      email: 'test@example.com',
-      password: 'password123',
-    };
-
-    const mockUserRecord = {
-      uid: 'test-uid',
-      email: 'test@example.com',
-      emailVerified: true,
-      displayName: 'Test User',
-    };
-
-    const mockUserDoc = {
-      exists: true,
-      data: () => ({
-        role: UserRole.USER,
-      }),
-    };
-
+  describe('login function', () => {
+    let mockFirebaseService: any;
+    let mockJwtService: any;
+    let mockAuthService: any;
+  
     beforeEach(() => {
-      mockFirebaseService.auth.getUserByEmail.mockResolvedValue(mockUserRecord);
-      mockFirebaseService.collection.mockReturnValue({
-        doc: jest.fn().mockReturnValue({
-          get: jest.fn().mockResolvedValue(mockUserDoc),
-        }),
-      });
-      mockJwtService.sign.mockReturnValue('mock-jwt-token');
+      mockFirebaseService = firebaseService;
+      mockAuthService = service;
+      mockJwtService = jwtService;
     });
-
-    it('should successfully login a user', async () => {
-      const result = await service.login(mockCredentials);
-
-      expect(mockFirebaseService.auth.getUserByEmail).toHaveBeenCalledWith(
-        mockCredentials.email,
-      );
-
-      expect(mockJwtService.sign).toHaveBeenCalledWith({
-        sub: mockUserRecord.uid,
-        email: mockUserRecord.email,
-        role: UserRole.USER,
+  
+    it('should successfully log in the user and return a token', async () => {
+      const credentials = { email: 'test@example.com', password: 'password' };
+  
+      const mockAuth = {
+        signInWithEmailAndPassword: jest.fn().mockResolvedValue({
+          user: { uid: '12345', email: 'test@example.com', displayName: 'Test User' },
+        }),
+      };
+  
+      const mockUserRecord = {
+        uid: '12345',
+        emailVerified: true,
+        email: 'test@example.com',
+        displayName: 'Test User',
+      };
+  
+      const mockUserDoc = { exists: true, data: jest.fn().mockReturnValue({ role: 'admin' }) };
+  
+      mockFirebaseService.getClientAuth = jest.fn().mockReturnValue(mockAuth);
+      mockFirebaseService.auth.getUser = jest.fn().mockResolvedValue(mockUserRecord);
+      mockFirebaseService.collection = jest.fn().mockReturnValue({
+        doc: jest.fn().mockReturnValue(mockUserDoc),
       });
-
+      mockJwtService.sign = jest.fn().mockReturnValue('jwt-token');
+  
+      const result = await mockAuthService.login(credentials);
+  
       expect(result).toEqual({
-        token: 'mock-jwt-token' ,
+        token: 'jwt-token',
         User: {
-          name: mockUserRecord.displayName,
-          email: mockUserRecord.email,
-          role: UserRole.USER,
+          email: 'test@example.com',
+          name: 'Test User',
+          role: 'admin',
         },
       });
-    });
-
-    it('should throw UnauthorizedException when email is not verified', async () => {
-      const unverifiedUser = { ...mockUserRecord, emailVerified: false };
-      mockFirebaseService.auth.getUserByEmail.mockResolvedValue(unverifiedUser);
-
-      await expect(service.login(mockCredentials)).rejects.toThrow(
-        UnauthorizedException,
-      );
-    });
-
-    it('should throw UnauthorizedException when user document does not exist', async () => {
-      const mockNonExistentDoc = {
-        exists: false,
-        data: () => null,
-      };
-
-      mockFirebaseService.collection.mockReturnValue({
-        doc: jest.fn().mockReturnValue({
-          get: jest.fn().mockResolvedValue(mockNonExistentDoc),
-        }),
+      expect(mockFirebaseService.getClientAuth).toHaveBeenCalled();
+      expect(mockFirebaseService.auth.getUser).toHaveBeenCalledWith('12345');
+      expect(mockJwtService.sign).toHaveBeenCalledWith({
+        sub: '12345',
+        email: 'test@example.com',
+        role: 'admin',
       });
-
-      await expect(service.login(mockCredentials)).rejects.toThrow(
-        UnauthorizedException,
+    });
+  
+    it('should throw an UnauthorizedException when email is not verified', async () => {
+      const credentials = { email: 'test@example.com', password: 'password' };
+  
+      const mockAuth = {
+        signInWithEmailAndPassword: jest.fn().mockResolvedValue({
+          user: { uid: '12345', email: 'test@example.com', displayName: 'Test User' },
+        }),
+      };
+  
+      const mockUserRecord = {
+        uid: '12345',
+        emailVerified: false,
+        email: 'test@example.com',
+        displayName: 'Test User',
+      };
+  
+      mockFirebaseService.getClientAuth = jest.fn().mockReturnValue(mockAuth);
+      mockFirebaseService.auth.getUser = jest.fn().mockResolvedValue(mockUserRecord);
+  
+      await expect(mockAuthService.login(credentials)).rejects.toThrowError(
+        new UnauthorizedException('Email not verified')
       );
     });
-
-    it('should throw UnauthorizedException when login fails', async () => {
-      mockFirebaseService.auth.getUserByEmail.mockRejectedValue(
-        new Error('Firebase error'),
+  
+    it('should throw an UnauthorizedException when user is not found in Firestore', async () => {
+      const credentials = { email: 'test@example.com', password: 'password' };
+  
+      const mockAuth = {
+        signInWithEmailAndPassword: jest.fn().mockResolvedValue({
+          user: { uid: '12345', email: 'test@example.com', displayName: 'Test User' },
+        }),
+      };
+  
+      const mockUserRecord = {
+        uid: '12345',
+        emailVerified: true,
+        email: 'test@example.com',
+        displayName: 'Test User',
+      };
+  
+      const mockUserDoc = { exists: false };
+  
+      mockFirebaseService.getClientAuth = jest.fn().mockReturnValue(mockAuth);
+      mockFirebaseService.auth.getUser = jest.fn().mockResolvedValue(mockUserRecord);
+      mockFirebaseService.collection = jest.fn().mockReturnValue({
+        doc: jest.fn().mockReturnValue(mockUserDoc),
+      });
+  
+      await expect(mockAuthService.login(credentials)).rejects.toThrowError(
+        new UnauthorizedException('User not found in database')
       );
-
-      await expect(service.login(mockCredentials)).rejects.toThrow(
-        UnauthorizedException,
+    });
+  
+    it('should throw an UnauthorizedException for invalid email or password', async () => {
+      const credentials = { email: 'wrong@example.com', password: 'wrongpassword' };
+  
+      const mockAuth = {
+        signInWithEmailAndPassword: jest.fn().mockRejectedValue({
+          code: 'auth/wrong-password',
+        }),
+      };
+  
+      mockFirebaseService.getClientAuth = jest.fn().mockReturnValue(mockAuth);
+  
+      await expect(mockAuthService.login(credentials)).rejects.toThrowError(
+        new UnauthorizedException('Invalid email or password')
       );
+    });
+  
+    it('should throw an UnauthorizedException for too many requests', async () => {
+      const credentials = { email: 'test@example.com', password: 'password' };
+  
+      const mockAuth = {
+        signInWithEmailAndPassword: jest.fn().mockRejectedValue({
+          code: 'auth/too-many-requests',
+        }),
+      };
+  
+      mockFirebaseService.getClientAuth = jest.fn().mockReturnValue(mockAuth);
+  
+      await expect(mockAuthService.login(credentials)).rejects.toThrowError(
+        new UnauthorizedException('Too many failed login attempts. Please try again later.')
+      );
+    });
+  
+    it('should throw an UnauthorizedException for other errors', async () => {
+      const credentials = { email: 'test@example.com', password: 'password' };
+  
+      const mockAuth = {
+        signInWithEmailAndPassword: jest.fn().mockRejectedValue({
+          code: 'auth/unknown-error',
+          message: 'Some error occurred',
+        }),
+      };
+  
+      mockFirebaseService.getClientAuth = jest.fn().mockReturnValue(mockAuth);
+  
+      await expect(mockAuthService.login(credentials)).rejects.toThrowError(
+        new UnauthorizedException('Authentication failed: Some error occurred')
+      );
+    });
+  
+    afterEach(() => {
+      jest.clearAllMocks();
     });
   });
-});
+});  
