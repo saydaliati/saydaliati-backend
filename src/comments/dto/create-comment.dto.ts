@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString } from "class-validator";
+import { IsNotEmpty, IsString, IsNumber } from "class-validator";
 
 export class CreateCommentDto {
 
@@ -7,8 +7,8 @@ export class CreateCommentDto {
     pharmacyId: string;
 
     @IsNotEmpty()
-    @IsString()
-    stars: number;
+    @IsNumber()
+    stars?: number;
 
     @IsNotEmpty()
     @IsString()
