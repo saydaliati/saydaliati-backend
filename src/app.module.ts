@@ -5,6 +5,7 @@ import { ConfigModule } from '@nestjs/config';
 import { FirebaseModule } from './firebase/firebase.module';
 import { AuthModule } from './auth/auth.module';
 import { FavoritModule } from './favorit/favorit.module';
+import { CommentsModule } from './comments/comments.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { FavoritModule } from './favorit/favorit.module';
     }),
     FirebaseModule,
     AuthModule,
+    CommentsModule,
     FavoritModule,
   ],
   controllers: [AppController],
