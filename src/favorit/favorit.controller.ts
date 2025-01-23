@@ -1,4 +1,4 @@
-import { Body, Controller, Post , Headers} from '@nestjs/common';
+import { Body, Controller, Post , Headers, Get} from '@nestjs/common';
 import { FavoritService } from './favorit.service';
 import { FavoritDto } from './dto/favorit.dto';
 
@@ -14,5 +14,10 @@ export class FavoritController {
   @Post('remove')
   async removeFavorit(@Body() favoritDto: FavoritDto , @Headers('authorization') token: string): Promise<void> {
     return this.favoritService.removeFavorit(favoritDto , token);
+  }
+
+  @Get('get')
+  async getFavorites(@Headers('authorization') token: string): Promise<any> {
+    return this.favoritService.getFavorites(token);
   }
 }
